@@ -140,7 +140,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="grafon_rgr.cpp" />
+    <ClCompile Include="GraphicsRGZ2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

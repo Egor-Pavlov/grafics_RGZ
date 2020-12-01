@@ -3,7 +3,6 @@
 #include <windows.h>
 #include <gl/glut.h>
 #include <cmath>
-#include <vector>
 #include <SOIL.h>
 
 #define PI 3.142315665
@@ -44,12 +43,22 @@ const GLfloat rgb[3][4] = {
     { 0.0, 0.0, 1.0, 1.0 }
 };
 
-/*  УСТАНОВКА ПАРАМЕТРОВ СВЕТА    */
+//отображение в перспективной проекции
+void persp(GLfloat FOV, GLfloat Aspect, GLfloat NearCP, GLfloat FarCP)
+{
+    GLfloat aspect = float(width) / float(height);
+    GLfloat fH = tan(float(FOV / 360.0f * 3.14159f)) * NearCP;
+    GLfloat fW = fH * aspect;
+    glFrustum(-fW, fW, -fH, fH, NearCP, FarCP);
+}
+
+//свойства цвета
 GLfloat LightAmbient[4] = { 0.1f, 0.1f, 0.05f, 1.0f }; // Цвет света
+
 void setlight()
 {
     glDisable(GL_LIGHT1);
-    GLfloat LightDiffuse[] = { (1.3f + LightAmbient[0]) / 2, (1.3f + LightAmbient[1]) / 2, (1.3f + LightAmbient[2]) / 2, 1.0f }; // цвет рассеивания зависит от цвета падения
+    GLfloat LightDiffuse[] = { (1.3f + LightAmbient[0]) / 2, (1.3f + LightAmbient[1]) / 2, (1.3f + LightAmbient[2])/ 2, 1.0f }; // цвет рассеивания зависит от цвета падения
     GLfloat LightSpecular[] = { 1.0f, 1.0f, 1.0f, 0.7f }; // цвет отражения просто белый
     glLightfv(GL_LIGHT1, GL_AMBIENT, LightAmbient);     // Падающий цвет
     glLightfv(GL_LIGHT1, GL_DIFFUSE, LightDiffuse);     // Рассеиващющийся цвет
@@ -57,7 +66,20 @@ void setlight()
     glEnable(GL_LIGHT1); // Включаем
 }
 
-/*   УСТАНОВКА ПАРАМЕТРОВ МАТЕРИАЛА   */
+//установка источника света
+void install_light()
+{
+    glPointSize(15);//размер точки, которая обозначает источник
+
+    glBegin(GL_POINTS);
+    glColor3d(1, 1, 1);
+    glVertex3d(LightPosition[0], LightPosition[1], LightPosition[2]);
+    glEnd();
+
+    glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
+}
+
+//свойства материала
 void setmaterial()
 {
     GLfloat MatAmbient[] = { 0.1f, 0.1f, 0.1f, 1.0f }; // как сверху все
@@ -68,11 +90,11 @@ void setmaterial()
     glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, MatShininess);
 }
 
-/*   ОТРИСОВКА ЦИЛИНДРА КАК В МЕТОДИЧКЕ   */
+//функция рисования цилиндра с заданным уравнением радиуса
 void draw_cylinder(GLfloat radius, GLfloat height)
 {
-    GLfloat h = -0.5; // Переменная из методички
-    GLfloat angle = 0.0; // из методички l
+    GLfloat h = -0.5; // начальное положение по высоте
+    GLfloat angle; 
     GLfloat angle_stepsize = 0.1; // шаг изменения угла
 
     int color = 0;
@@ -81,9 +103,10 @@ void draw_cylinder(GLfloat radius, GLfloat height)
     glBegin(GL_TRIANGLE_STRIP);
     for (h; h < 0.5; h += 0.25)
     {
+        angle = 0.0;
         while (angle <= 2 * PI) 
         {
-            GLfloat Radius = radius * (1 + std::abs(std::sin(2 * angle)));
+            GLfloat Radius = radius * (1 + std::abs(std::sin(2 * angle)));//Вычисление расстояни от точки до контура
            
             GLfloat x = Radius * cos(angle);
             GLfloat y = Radius * sin(angle);
@@ -95,18 +118,19 @@ void draw_cylinder(GLfloat radius, GLfloat height)
                 glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE, colors[color]);
                 color++;
             }
+
             glTexCoord2f(-x / 5, y / 255); // наложение текстур
             glVertex3f(x, y, height * h);
             glTexCoord2f(-x / 10, y / 15);
             glVertex3f(x, y, height *(h + 0.25));
+
             angle = angle + angle_stepsize;
         }
-        angle = 0.0;
     }
     glEnd();
 }
 
-/*   СПЕЦИАЛЬНАЯ ОТРИСОВКА В ЗАВИСИМОСТИ ОТ WIRE_F   */
+//изображение каркаса
 void figure()
 {
     setmaterial();
@@ -125,54 +149,17 @@ void figure()
     glFlush();
 }
 
-void install_light()
-{
-    glPointSize(10);
-    glBegin(GL_POINTS);
-    glColor3d(1, 1, 1);
-    glVertex3d(LightPosition[0], LightPosition[1], LightPosition[2]);
-    glEnd();
-    glLightfv(GL_LIGHT1, GL_POSITION, LightPosition);
-}
-
-void display(void) {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Очистка буфферов
-    glLoadIdentity();
-
-    gluLookAt(0, 50, -10, 0, 0, 0, 0, 1, 0); // настройка вида
-
-    glPushMatrix(); 
-    {
-        // Изменение положения фигуры в пространстве
-        glTranslatef(0, cameraDistance, 0);
-        glRotatef(-rotate_y, 1, 0, 0);
-        glRotatef(-rotate_x, 0, 1, 0);
-
-        glPushMatrix();
-        {
-            install_light();
-            figure();
-        } 
-        glPopMatrix();
-
-        glRotatef(-rotate_y, 1, 0, 0);
-        glRotatef(-rotate_x, 0, 1, 0);
-    } 
-    glPopMatrix();
-    glFlush();
-    glutSwapBuffers();
-}
-
+//интерфейс
 void keyboardFunc(unsigned char key, int x, int y)
 {
     std::string a, choose;
     double r, g, b;
+
     while (true)
     {
-        
-        std::cout << "Введите действие:\n1. смена цвета света\n2. смена цвета заднего плана(окна)\n3. переключение между текстурой и зарисовкой\n4. Удаление передней или задней стороны\n5. Установка положения источника света\n6. установка свойства материала(блестящий или нет)\n7. переключение между каркасом и сплошной фигурой\n";
+        std::cout << "Введите действие:\n1. Смена цвета света\n2. Смена цвета фона\n3. Переключение между текстурой и зарисовкой\n4. Удаление передней или задней стороны\n5. Установка положения источника света\n6. Установка свойства материала(блестящий или нет)\n7. Переключение между каркасом и сплошной фигурой\n";
         std::cin >> a;
-        if (a == "1")
+        if (a == "1")// смена цвета света
         {
             std::cout << "Введите r, g, b:\n";
             std::cin >> r >> g >> b;
@@ -181,14 +168,14 @@ void keyboardFunc(unsigned char key, int x, int y)
             LightAmbient[2] = b;
             break;
         }
-        if (a == "2")
+        if (a == "2")//смена цвета заднего плана(окна)
         {
             std::cout << "Введите r, g, b:\n";
             std::cin >> r >> g >> b;
             glClearColor(r, g, b, 1);
             break;
         }
-        if (a == "3")
+        if (a == "3")//переключение между текстурой и зарисовкой
         {
             if (textur_f)
             {
@@ -203,8 +190,8 @@ void keyboardFunc(unsigned char key, int x, int y)
                 break;
             }
         }
-
-        if (a == "4")
+        
+        if (a == "4")//Удаление передней или задней стороны
         {
             if (cul_f)
             {
@@ -220,8 +207,8 @@ void keyboardFunc(unsigned char key, int x, int y)
                 break;
             }
         }
-
-        if (a == "5")
+       
+        if (a == "5")//Установка положения источника света
         {
             std::cout << "Введите x, y, z:\n";
             int x, y, z;
@@ -236,7 +223,7 @@ void keyboardFunc(unsigned char key, int x, int y)
             break;
         }
 
-        if(a == "6")
+        if(a == "6")//установка свойства материала(блестящий или нет)
         {
             while (1)
             {
@@ -260,7 +247,7 @@ void keyboardFunc(unsigned char key, int x, int y)
                 }
             }
         }
-        if (a == "7")
+        if (a == "7")//Переключение между каркасом и сплошной фигурой
         {
             if (wires_f)
             {
@@ -283,36 +270,69 @@ void keyboardFunc(unsigned char key, int x, int y)
     }
     system("cls");
 }
+//Изменение положения фигуры в пространстве
+void mouseFunc(int button, int state, int x, int y) 
+{ 
+    if (button == GLUT_LEFT_BUTTON)                   
+        left_click = state;                           
+    if (button == GLUT_RIGHT_BUTTON)                  
+        right_click = state;                          
+                                                      
+    xold = x;                                         
+    yold = y;                                         
+}                                                     
+                                                      
+void motionFunc(int x, int y) 
+{                       
+    if (left_click == GLUT_DOWN)//поворот фигуры при нажатии ЛКМ и движении мыши
+    {                    
+        rotate_y = rotate_y + (y - yold) / 5.f;       
+        rotate_x = rotate_x + (x - xold) / 5.f;       
+        glutPostRedisplay();                          
+    }                                                 
+    if (right_click == GLUT_DOWN) //изменение расстояние до фигуры при нажатой ПКМ и движении мыши              
+    {                                                 
+        cameraDistance -= (y - yold) * 0.2f;          
+        yold = y;                                     
+        glutPostRedisplay();                          
+    }                                                 
+                                                      
+    xold = x;                                         
+    yold = y;                                         
+}                       
 
-void mouseFunc(int button, int state, int x, int y) { // |
-    if (button == GLUT_LEFT_BUTTON)                   // |
-        left_click = state;                           // |
-    if (button == GLUT_RIGHT_BUTTON)                  // |
-        right_click = state;                          // |
-                                                      // |
-    xold = x;                                         // |
-    yold = y;                                         // |
-}                                                     // |
-                                                      // | Изменение положения фигуры в пространстве
-void motionFunc(int x, int y) {                       // |
-    if (left_click == GLUT_DOWN) {                    // |
-        rotate_y = rotate_y + (y - yold) / 5.f;       // |
-        rotate_x = rotate_x + (x - xold) / 5.f;       // |
-        glutPostRedisplay();                          // |
-    }                                                 // |
-    if (right_click == GLUT_DOWN)                     // |
-    {                                                 // |
-        cameraDistance -= (y - yold) * 0.2f;          // |
-        yold = y;                                     // |
-        glutPostRedisplay();                          // |
-    }                                                 // |
-                                                      // |
-    xold = x;                                         // |
-    yold = y;                                         // |
-}                                                     // |
+void display(void)
+{
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Очистка буфферов
+    glLoadIdentity();//сброс матрицы до единичной
 
+    gluLookAt(0, 50, -10, 0, 0, 0, 0, 1, 0); // настройка вида
 
-void reshapeFunc(int new_width, int new_height) {
+    glPushMatrix();
+    {
+        // Изменение положения фигуры в пространстве мышкой
+        glTranslatef(0, cameraDistance, 0);
+        glRotatef(-rotate_y, 1, 0, 0);
+        glRotatef(-rotate_x, 0, 1, 0);
+
+        glPushMatrix();
+        {
+            install_light();
+            figure();
+        }
+        glPopMatrix();
+
+        glRotatef(-rotate_y, 1, 0, 0);
+        glRotatef(-rotate_x, 0, 1, 0);
+    }
+    glPopMatrix();
+    glFlush();
+    glutSwapBuffers();
+}
+
+//перерисовка изображения
+void reshapeFunc(int new_width, int new_height) 
+{
     width = new_width;
     height = new_height;
 
@@ -327,34 +347,33 @@ void reshapeFunc(int new_width, int new_height) {
         SOIL_CREATE_NEW_ID,
         SOIL_FLAG_MIPMAPS | SOIL_FLAG_INVERT_Y | SOIL_FLAG_NTSC_SAFE_RGB | SOIL_FLAG_COMPRESS_TO_DXT
     );
-
-    //glBindTexture(GL_TEXTURE_2D, texture); // Привязка текстуры
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT); // повтор текстуры
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
     if (cam_f)
-        gluPerspective(90, width / height, 1, 200);
-    else  glOrtho(-45, 45, -45, 45, 1, 200);
+        persp(90, width / height, 1, 200);
+
+    else 
+        glOrtho(-45, 45, -45, 45, 1, 200);
 
     glMatrixMode(GL_MODELVIEW);
-
     glutPostRedisplay();
 }
 
 int main(int argc, char** argv)
 {
     setlocale(LC_ALL, "Ru");
-    // Создаем окно
-    glutInit(&argc, argv);
+
+    glutInit(&argc, argv);   // Создаем окно
     glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH); // Используем 4 канала, с двумя буферами, с буфером глубины
     glutInitWindowSize(900, 600);
-
     glutCreateWindow("Четырехлистный цилиндр ");
 
     std::string choose;
-    while (1)
+
+    while (true)
     {
         std::cout << "1. перспективная проекция\n2. аксонометрическая\n";
         std::cin >> choose;
@@ -373,15 +392,11 @@ int main(int argc, char** argv)
     }
 
     glEnable(GL_DEPTH_TEST); // Для z-buffer
-
     glEnable(GL_POLYGON_SMOOTH); // для корректного отображения полигонов
     glEnable(GL_LINE_SMOOTH); //  и линий
-
     glEnable(GL_TEXTURE_2D); // использоавние 2д текстур
-
     glEnable(GL_LIGHTING); // использоавние света
     glShadeModel(GL_SMOOTH); // гладкие  тени
-
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
